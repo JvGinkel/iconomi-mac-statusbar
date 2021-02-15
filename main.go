@@ -6,11 +6,11 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
-	"iconomi-mac-statusbar/config"
 	"net/http"
 	"strconv"
 	"time"
 
+	"github.com/JvGinkel/iconomi-mac-statusbar/config"
 	"github.com/caseymrm/menuet"
 )
 
