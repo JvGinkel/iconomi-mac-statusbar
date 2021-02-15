@@ -6,7 +6,7 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
-	"icon/config"
+	"iconomi-mac-statusbar/config"
 	"net/http"
 	"strconv"
 	"time"
