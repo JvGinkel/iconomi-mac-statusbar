@@ -28,7 +28,7 @@ jobs:
       run: go test -v ./...
 
   build_macos-10.15:
-    runs-on: macos-10.15
+    runs-on: macos-1015
     steps:
     - uses: actions/checkout@v2
 
