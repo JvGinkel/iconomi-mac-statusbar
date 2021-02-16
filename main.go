@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"net/http/httputil"
 	"strconv"
 	"time"
 
@@ -103,6 +104,16 @@ func iconomiBalance() {
 		if err != nil {
 			fmt.Print(err)
 		}
+		defer resp.Body.Close()
+
+		if resp.StatusCode != 200 {
+			responseDump, err := httputil.DumpResponse(resp, true)
+			if err != nil {
+				fmt.Println(err)
+			}
+			fmt.Println(string(responseDump))
+		}
+
 		var b balance
 		var totalBalance float64
 		var value float64
