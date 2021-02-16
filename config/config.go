@@ -27,17 +27,17 @@ func Init(f string) error {
 		panic(err)
 	}
 	if len(f) == 0 {
-		f = fmt.Sprintf("%s/.icononmi/config.yaml", usr.HomeDir)
+		f = fmt.Sprintf("%s/.iconomi/config.yaml", usr.HomeDir)
 	}
 	if _, err := os.Stat(f); err == nil {
 		// File found do nothing
 	} else if os.IsNotExist(err) {
 		// File missing
-		if _, err := os.Stat(fmt.Sprintf("%s/.icononmi", usr.HomeDir)); os.IsNotExist(err) {
-			os.Mkdir(fmt.Sprintf("%s/.icononmi", usr.HomeDir), 0775)
+		if _, err := os.Stat(fmt.Sprintf("%s/.iconomi", usr.HomeDir)); os.IsNotExist(err) {
+			os.Mkdir(fmt.Sprintf("%s/.iconomi", usr.HomeDir), 0775)
 		}
 		exampleConfig := []byte("---\napikey: APIKEYHERE\nsecretkey: SECRET_KEY_HERE\n")
-		err := ioutil.WriteFile(fmt.Sprintf("%s/.icononmi/config.yaml", usr.HomeDir), exampleConfig, 0660)
+		err := ioutil.WriteFile(fmt.Sprintf("%s/.iconomi/config.yaml", usr.HomeDir), exampleConfig, 0660)
 		if err != nil {
 			panic(err)
 		}
