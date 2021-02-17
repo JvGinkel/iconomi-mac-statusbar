@@ -18,6 +18,8 @@ type Config struct {
 var (
 	// C contains config struct
 	C Config
+	// Verbose enables verbose output to stdout
+	Verbose bool
 )
 
 // Init read the config file

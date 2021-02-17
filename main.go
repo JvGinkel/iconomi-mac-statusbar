@@ -5,9 +5,11 @@ import (
 	"crypto/sha512"
 	"encoding/base64"
 	"encoding/json"
+	"flag"
 	"fmt"
 	"net/http"
 	"net/http/httputil"
+	"os/user"
 	"strconv"
 	"time"
 
@@ -81,10 +83,6 @@ func getBTCPrice() string {
 }
 
 func iconomiBalance() {
-	// Read config file
-	if e := config.Init(""); e != nil {
-		panic(e)
-	}
 
 	for {
 		timestamp := time.Now().UnixNano() / int64(time.Millisecond)
@@ -146,6 +144,23 @@ func iconomiBalance() {
 }
 
 func main() {
+	// showVersion := false
+	configPath := ""
+	// flag.BoolVar(&config.Verbose, "v", false, "Verbose-mode (log more)")
+	flag.StringVar(&configPath, "c", "", "Path to config")
+	// flag.BoolVar(&showVersion, "version", false, "Show version")
+	flag.Parse()
+	// Read config file
+	usr, err := user.Current()
+	if err != nil {
+		panic(err)
+	}
+	if len(configPath) == 0 {
+		configPath = fmt.Sprintf("%s/.iconomi/config.yaml", usr.HomeDir)
+	}
+	if e := config.Init(configPath); e != nil {
+		panic(e)
+	}
 	// Fetch data
 	go iconomiBalance()
 
@@ -153,7 +168,7 @@ func main() {
 	app.Name = "Iconomi Status"
 	app.Label = "com.github.itshosted.iconomi-status"
 	// app.Children = menuItems
-	app.AutoUpdate.Version = "v0.1"
+	app.AutoUpdate.Version = "v0.2"
 	app.RunApplication()
 	// menuet.App().RunApplication()
 }
