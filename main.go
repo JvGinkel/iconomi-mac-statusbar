@@ -17,6 +17,20 @@ import (
 	"github.com/caseymrm/menuet"
 )
 
+var (
+	// IconomiBalanceResponse contains the latest api request data
+	IconomiBalanceResponse balance
+	// BTCprice contains USD and EUR price
+	BTCprice BTCpriceStruct
+	// DisplayCurrency show prices in EUR / USD
+	DisplayCurrency = "EUR"
+)
+
+//BTCpriceStruct contains USD and EUR current price
+type BTCpriceStruct struct {
+	USDrateFloat float64
+	EURrateFloat float64
+}
 type balance struct {
 	Currency string `json:"currency"`
 	DaaList  []struct {
@@ -63,23 +77,31 @@ func hmac512pass(password string, secret []byte) string {
 }
 
 func getBTCPrice() string {
-	// https://api.coindesk.com/v1/bpi/currentprice/EUR.json
-	req, e := http.NewRequest("GET", "https://api.coindesk.com/v1/bpi/currentprice/EUR.json", nil)
-	if e != nil {
-		fmt.Print(e)
-		return "NaN"
-	}
-	client := &http.Client{}
-	res, e := client.Do(req)
+	for {
+		// https://api.coindesk.com/v1/bpi/currentprice/EUR.json
+		req, e := http.NewRequest("GET", "https://api.coindesk.com/v1/bpi/currentprice/EUR.json", nil)
+		if e != nil {
+			fmt.Print(e)
+			return "NaN"
+		}
+		client := &http.Client{}
+		res, e := client.Do(req)
 
-	var btcprice coindeskCurrentPrice
-	e = json.NewDecoder(res.Body).Decode(&btcprice)
-	if e != nil {
-		fmt.Printf("Error: %+v", e)
-		return "NaN"
-	}
+		var btcprice coindeskCurrentPrice
+		e = json.NewDecoder(res.Body).Decode(&btcprice)
+		if e != nil {
+			fmt.Printf("Error: %+v", e)
+			return "NaN"
+		}
+		BTCprice.EURrateFloat = btcprice.Bpi.EUR.RateFloat
+		BTCprice.USDrateFloat = btcprice.Bpi.USD.RateFloat
 
-	return fmt.Sprintf("%.2f", btcprice.Bpi.EUR.RateFloat)
+		if config.Verbose {
+			fmt.Println(BTCprice.EURrateFloat)
+			fmt.Println(BTCprice.USDrateFloat)
+		}
+		time.Sleep(time.Minute)
+	}
 }
 
 func iconomiBalance() {
@@ -89,7 +111,7 @@ func iconomiBalance() {
 		combined := fmt.Sprintf("%dGET%s", timestamp, "/v1/user/balance")
 		sign := hmac512pass(combined, []byte(config.C.Secretkey))
 		// Make request
-		req, err := http.NewRequest("GET", "https://api.iconomi.com/v1/user/balance?currency=EUR", nil)
+		req, err := http.NewRequest("GET", fmt.Sprintf("https://api.iconomi.com/v1/user/balance?currency=%s", DisplayCurrency), nil)
 		if err != nil {
 			fmt.Print(err)
 		}
@@ -112,63 +134,134 @@ func iconomiBalance() {
 			fmt.Println(string(responseDump))
 		}
 
-		var b balance
-		var totalBalance float64
-		var value float64
-
-		e := json.NewDecoder(resp.Body).Decode(&b)
+		e := json.NewDecoder(resp.Body).Decode(&IconomiBalanceResponse)
 		if e != nil {
 			fmt.Printf("Error: %+v", e)
 		}
 		// fmt.Printf("json: %+v", b)
 
-		for _, v := range b.DaaList {
-			// fmt.Println("\n v:", v.Value)
-			value, _ = strconv.ParseFloat(v.Value, 64)
-			totalBalance = totalBalance + value
-		}
-		for _, v := range b.AssetList {
-			// fmt.Println("\n v:", v.Value)
-			value, _ = strconv.ParseFloat(v.Value, 64)
-			if b.Currency == v.Ticker {
-				totalBalance = totalBalance + value
-			}
-		}
-
-		menuet.App().SetMenuState(&menuet.MenuState{
-			Title: fmt.Sprintf("📊 €%.2f / ₿ €%s", totalBalance, getBTCPrice()),
-		})
-
-		time.Sleep(time.Minute)
+		setMenu()
+		time.Sleep(time.Second * 60)
 	}
 }
 
 func main() {
-	// showVersion := false
-	configPath := ""
-	// flag.BoolVar(&config.Verbose, "v", false, "Verbose-mode (log more)")
-	flag.StringVar(&configPath, "c", "", "Path to config")
-	// flag.BoolVar(&showVersion, "version", false, "Show version")
-	flag.Parse()
-	// Read config file
 	usr, err := user.Current()
 	if err != nil {
 		panic(err)
 	}
-	if len(configPath) == 0 {
-		configPath = fmt.Sprintf("%s/.iconomi/config.yaml", usr.HomeDir)
-	}
+	configPath := fmt.Sprintf("%s/.iconomi/config.yaml", usr.HomeDir)
+	// showVersion := false
+	flag.StringVar(&configPath, "c", configPath, "Path to config")
+	flag.BoolVar(&config.Verbose, "v", false, "Verbose-mode (log more)")
+	flag.Parse()
+
+	// Read config file
 	if e := config.Init(configPath); e != nil {
 		panic(e)
 	}
+
 	// Fetch data
 	go iconomiBalance()
+	go getBTCPrice()
 
 	app := menuet.App()
 	app.Name = "Iconomi Status"
 	app.Label = "com.github.itshosted.iconomi-status"
-	// app.Children = menuItems
-	app.AutoUpdate.Version = "v0.2"
+	app.Children = menuItems
+	app.AutoUpdate.Version = "0.0.1"
 	app.RunApplication()
 	// menuet.App().RunApplication()
+}
+
+func iconomiTotal() float64 {
+	var totalBalance float64
+	var value float64
+
+	for _, v := range IconomiBalanceResponse.DaaList {
+		// fmt.Println("\n v:", v.Value)
+		value, _ = strconv.ParseFloat(v.Value, 64)
+		totalBalance = totalBalance + value
+	}
+	for _, v := range IconomiBalanceResponse.AssetList {
+		// fmt.Println("\n v:", v.Value)
+		value, _ = strconv.ParseFloat(v.Value, 64)
+		// if IconomiBalanceResponse.Currency == v.Ticker {
+		totalBalance = totalBalance + value
+		// }
+	}
+	return totalBalance
+}
+
+func menuItems() []menuet.MenuItem {
+
+	var items []menuet.MenuItem
+	for _, v := range IconomiBalanceResponse.DaaList {
+		// fmt.Println("\n v:", v.Value)
+		value, _ := strconv.ParseFloat(v.Value, 64)
+		text := fmt.Sprintf("%-20s €%.2f", v.Name, value)
+
+		items = append(items, menuet.MenuItem{
+			Text: text,
+		})
+		items = append(items, menuet.MenuItem{
+			Type: menuet.Separator,
+		})
+	}
+	for _, v := range IconomiBalanceResponse.AssetList {
+		// fmt.Println("\n v:", v.Value)
+		value, _ := strconv.ParseFloat(v.Value, 64)
+		text := fmt.Sprintf("%-20s €%.2f", v.Name, value)
+
+		items = append(items, menuet.MenuItem{
+			Text: text,
+		})
+		items = append(items, menuet.MenuItem{
+			Type: menuet.Separator,
+		})
+	}
+
+	currency := menuet.Defaults().Boolean("currency")
+	items = append(items, menuet.MenuItem{
+		Text: "Currency",
+		Children: func() []menuet.MenuItem {
+			return []menuet.MenuItem{
+				{
+					Text: "USD",
+					Clicked: func() {
+						menuet.Defaults().SetBoolean("currency", false)
+						setMenu()
+					},
+					State: !currency,
+				},
+				{
+					Text: "EUR",
+					Clicked: func() {
+						menuet.Defaults().SetBoolean("currency", true)
+						setMenu()
+					},
+					State: currency,
+				},
+			}
+		},
+	})
+
+	return items
+}
+
+func setMenu() {
+	currency := menuet.Defaults().Boolean("currency")
+	btcpricetext := fmt.Sprintf("$%.2f", BTCprice.USDrateFloat)
+	if !currency {
+		DisplayCurrency = "USD"
+		btcpricetext = fmt.Sprintf("$%.2f", BTCprice.USDrateFloat)
+	} else {
+		DisplayCurrency = "EUR"
+		btcpricetext = fmt.Sprintf("€%.2f", BTCprice.EURrateFloat)
+	}
+
+	menuet.App().SetMenuState(&menuet.MenuState{
+		Title: fmt.Sprintf("📊 €%.2f / ₿ %s", iconomiTotal(), btcpricetext),
+	})
+	menuet.App().MenuChanged()
 }

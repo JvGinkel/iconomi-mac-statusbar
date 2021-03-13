@@ -20,7 +20,7 @@ jobs:
 
     - name: go-get
       run: go get
-      
+
     - name: Build
       run: go build -v ./...
 
@@ -28,7 +28,7 @@ jobs:
       run: go test -v ./...
 
   build_macos-1015:
-    runs-on: macos-1015
+    runs-on: macos-10.15
     steps:
     - uses: actions/checkout@v2
 
@@ -39,7 +39,7 @@ jobs:
 
     - name: go-get
       run: go get
-      
+
     - name: Build
       run: go build -v ./...
 
