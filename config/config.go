@@ -31,7 +31,7 @@ func Init(f string) error {
 	if len(f) == 0 {
 		f = fmt.Sprintf("%s/.iconomi/config.yaml", usr.HomeDir)
 	}
-	fmt.Println(fmt.Sprintf("Reading config from %s", f))
+	fmt.Printf("reading config from %s\n", f)
 
 	if _, err := os.Stat(f); err == nil {
 		// File found do nothing
