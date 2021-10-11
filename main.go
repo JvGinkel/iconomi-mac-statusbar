@@ -86,7 +86,10 @@ func getBTCPrice() string {
 		}
 		client := &http.Client{}
 		res, e := client.Do(req)
-
+		if e != nil {
+			fmt.Print(e)
+			return "NaN"
+		}
 		var btcprice coindeskCurrentPrice
 		e = json.NewDecoder(res.Body).Decode(&btcprice)
 		if e != nil {
@@ -124,7 +127,6 @@ func iconomiBalance() {
 		if err != nil {
 			fmt.Print(err)
 		}
-		defer resp.Body.Close()
 
 		if resp.StatusCode != 200 {
 			responseDump, err := httputil.DumpResponse(resp, true)
@@ -139,7 +141,7 @@ func iconomiBalance() {
 			fmt.Printf("Error: %+v", e)
 		}
 		// fmt.Printf("json: %+v", b)
-
+		resp.Body.Close()
 		setMenu()
 		time.Sleep(time.Second * 60)
 	}
@@ -251,7 +253,7 @@ func menuItems() []menuet.MenuItem {
 
 func setMenu() {
 	currency := menuet.Defaults().Boolean("currency")
-	btcpricetext := fmt.Sprintf("$%.2f", BTCprice.USDrateFloat)
+	var btcpricetext string
 	if !currency {
 		DisplayCurrency = "USD"
 		btcpricetext = fmt.Sprintf("$%.2f", BTCprice.USDrateFloat)
