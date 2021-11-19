@@ -140,7 +140,10 @@ func iconomiBalance() {
 		if e != nil {
 			fmt.Printf("Error: %+v", e)
 		}
-		// fmt.Printf("json: %+v", b)
+		if config.Verbose {
+			fmt.Printf("json: %+v\n", IconomiBalanceResponse)
+		}
+
 		resp.Body.Close()
 		setMenu()
 		time.Sleep(time.Second * 60)
@@ -201,7 +204,13 @@ func menuItems() []menuet.MenuItem {
 	for _, v := range IconomiBalanceResponse.DaaList {
 		// fmt.Println("\n v:", v.Value)
 		value, _ := strconv.ParseFloat(v.Value, 64)
-		text := fmt.Sprintf("%-20s €%.2f", v.Name, value)
+		// text := fmt.Sprintf("%-20s €%.2f", v.Name, value)
+		text := ""
+		if DisplayCurrency == "EUR" {
+			text = fmt.Sprintf("%-20s €%.2f", v.Name, value)
+		} else {
+			text = fmt.Sprintf("%-20s $%.2f", v.Name, value)
+		}
 
 		items = append(items, menuet.MenuItem{
 			Text: text,
@@ -213,7 +222,12 @@ func menuItems() []menuet.MenuItem {
 	for _, v := range IconomiBalanceResponse.AssetList {
 		// fmt.Println("\n v:", v.Value)
 		value, _ := strconv.ParseFloat(v.Value, 64)
-		text := fmt.Sprintf("%-20s €%.2f", v.Name, value)
+		text := ""
+		if DisplayCurrency == "EUR" {
+			text = fmt.Sprintf("%-20s €%.2f", v.Name, value)
+		} else {
+			text = fmt.Sprintf("%-20s $%.2f", v.Name, value)
+		}
 
 		items = append(items, menuet.MenuItem{
 			Text: text,
@@ -254,16 +268,19 @@ func menuItems() []menuet.MenuItem {
 func setMenu() {
 	currency := menuet.Defaults().Boolean("currency")
 	var btcpricetext string
+	var ticker string
 	if !currency {
 		DisplayCurrency = "USD"
 		btcpricetext = fmt.Sprintf("$%.2f", BTCprice.USDrateFloat)
+		ticker = "$"
 	} else {
 		DisplayCurrency = "EUR"
 		btcpricetext = fmt.Sprintf("€%.2f", BTCprice.EURrateFloat)
+		ticker = "€"
 	}
 
 	menuet.App().SetMenuState(&menuet.MenuState{
-		Title: fmt.Sprintf("📊 €%.2f / ₿ %s", iconomiTotal(), btcpricetext),
+		Title: fmt.Sprintf("📊 %s%.2f / ₿ %s", ticker, iconomiTotal(), btcpricetext),
 	})
 	menuet.App().MenuChanged()
 }
