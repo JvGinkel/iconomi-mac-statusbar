@@ -116,7 +116,7 @@ func iconomiBalance() {
 		// Make request
 		req, err := http.NewRequest("GET", fmt.Sprintf("https://api.iconomi.com/v1/user/balance?currency=%s", DisplayCurrency), nil)
 		if err != nil {
-			fmt.Print(err)
+			fmt.Println(err)
 		}
 
 		req.Header.Set("ICN-API-KEY", config.C.Apikey)
@@ -125,27 +125,28 @@ func iconomiBalance() {
 		client := &http.Client{}
 		resp, err := client.Do(req)
 		if err != nil {
-			fmt.Print(err)
-		}
+			fmt.Println(err)
+		} else {
 
-		if resp.StatusCode != 200 {
-			responseDump, err := httputil.DumpResponse(resp, true)
-			if err != nil {
-				fmt.Println(err)
+			if resp.StatusCode != 200 {
+				responseDump, err := httputil.DumpResponse(resp, true)
+				if err != nil {
+					fmt.Println(err)
+				}
+				fmt.Println(string(responseDump))
 			}
-			fmt.Println(string(responseDump))
-		}
 
-		e := json.NewDecoder(resp.Body).Decode(&IconomiBalanceResponse)
-		if e != nil {
-			fmt.Printf("Error: %+v", e)
-		}
-		if config.Verbose {
-			fmt.Printf("json: %+v\n", IconomiBalanceResponse)
-		}
+			e := json.NewDecoder(resp.Body).Decode(&IconomiBalanceResponse)
+			if e != nil {
+				fmt.Printf("Error: %+v", e)
+			}
+			if config.Verbose {
+				fmt.Printf("json: %+v\n", IconomiBalanceResponse)
+			}
 
-		resp.Body.Close()
-		setMenu()
+			resp.Body.Close()
+			setMenu()
+		}
 		time.Sleep(time.Second * 60)
 	}
 }
