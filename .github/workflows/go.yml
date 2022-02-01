@@ -10,11 +10,6 @@ jobs:
 
   build_macos-latest:
     runs-on: macos-latest
-    strategy:
-      matrix:
-        # build and publish in parallel: linux/amd64
-        goos: [darwin]
-        goarch: [amd64,arm64]
     steps:
     - uses: actions/checkout@v2
 
@@ -31,15 +26,6 @@ jobs:
 
     - name: Test
       run: go test -v ./...
-
-    - uses: wangyoucao577/go-release-action@v1.16
-      with:
-        github_token: ${{ secrets.GITHUB_TOKEN }}
-        goos: ${{ matrix.goos }}
-        goarch: ${{ matrix.goarch }}
-        project_path: "./"
-        binary_name: "iconomi-mac-statusbar"
-        ldflags: ""
 
   build_macos-1015:
     runs-on: macos-10.15
