@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"crypto/hmac"
 	"crypto/sha512"
 	"encoding/base64"
@@ -26,7 +27,7 @@ var (
 	DisplayCurrency = "EUR"
 )
 
-//BTCpriceStruct contains USD and EUR current price
+// BTCpriceStruct contains USD and EUR current price
 type BTCpriceStruct struct {
 	USDrateFloat float64
 	EURrateFloat float64
@@ -47,63 +48,67 @@ type balance struct {
 	} `json:"assetList"`
 }
 
-type coindeskCurrentPrice struct {
-	Time struct {
-		Updated    string    `json:"updated"`
-		UpdatedISO time.Time `json:"updatedISO"`
-		Updateduk  string    `json:"updateduk"`
-	} `json:"time"`
-	Disclaimer string `json:"disclaimer"`
-	Bpi        struct {
-		USD struct {
-			Code        string  `json:"code"`
-			Rate        string  `json:"rate"`
-			Description string  `json:"description"`
-			RateFloat   float64 `json:"rate_float"`
-		} `json:"USD"`
-		EUR struct {
-			Code        string  `json:"code"`
-			Rate        string  `json:"rate"`
-			Description string  `json:"description"`
-			RateFloat   float64 `json:"rate_float"`
-		} `json:"EUR"`
-	} `json:"bpi"`
-}
-
 func hmac512pass(password string, secret []byte) string {
 	hmac512 := hmac.New(sha512.New, secret)
 	hmac512.Write([]byte(password))
 	return base64.StdEncoding.EncodeToString(hmac512.Sum(nil))
 }
 
-func getBTCPrice() string {
+type priceResponse struct {
+	Bitcoin struct {
+		USD float64 `json:"usd"`
+		EUR float64 `json:"eur"`
+	} `json:"bitcoin"`
+}
+
+func getBTCPriceCoingecko() (float64, float64, error) {
+	// build a context with timeout to avoid hanging
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	// CoinGecko simple price endpoint
+	url := "https://api.coingecko.com/api/v3/simple/price?ids=bitcoin&vs_currencies=usd,eur"
+
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
+	if err != nil {
+		return 0, 0, fmt.Errorf("creating request: %w", err)
+	}
+
+	client := &http.Client{}
+	res, err := client.Do(req)
+	if err != nil {
+		return 0, 0, fmt.Errorf("doing http request: %w", err)
+	}
+	defer res.Body.Close()
+
+	if res.StatusCode != http.StatusOK {
+		return 0, 0, fmt.Errorf("unexpected status: %s", res.Status)
+	}
+
+	var pr priceResponse
+	if err := json.NewDecoder(res.Body).Decode(&pr); err != nil {
+		return 0, 0, fmt.Errorf("decoding response: %w", err)
+	}
+
+	return pr.Bitcoin.USD, pr.Bitcoin.EUR, nil
+}
+
+func getBTCPrice() {
 	for {
-		// https://api.coindesk.com/v1/bpi/currentprice/EUR.json
-		req, e := http.NewRequest("GET", "https://api.coindesk.com/v1/bpi/currentprice/EUR.json", nil)
-		if e != nil {
-			fmt.Print(e)
-			return "NaN"
+		// Fetch BTC price
+		usd, eur, err := getBTCPriceCoingecko()
+		if err != nil {
+			fmt.Println("Error fetching BTC price:", err)
+			return
 		}
-		client := &http.Client{}
-		res, e := client.Do(req)
-		if e != nil {
-			fmt.Print(e)
-			return "NaN"
-		}
-		var btcprice coindeskCurrentPrice
-		e = json.NewDecoder(res.Body).Decode(&btcprice)
-		if e != nil {
-			fmt.Printf("Error: %+v", e)
-			return "NaN"
-		}
-		BTCprice.EURrateFloat = btcprice.Bpi.EUR.RateFloat
-		BTCprice.USDrateFloat = btcprice.Bpi.USD.RateFloat
+		BTCprice.USDrateFloat = usd
+		BTCprice.EURrateFloat = eur
 
 		if config.Verbose {
-			fmt.Println(BTCprice.EURrateFloat)
-			fmt.Println(BTCprice.USDrateFloat)
+			fmt.Printf("USD: %.2f EUR: %.2f\n", BTCprice.USDrateFloat, BTCprice.EURrateFloat)
 		}
-		time.Sleep(time.Minute)
+		setMenu()
+		time.Sleep(time.Second * 60)
 	}
 }
 
